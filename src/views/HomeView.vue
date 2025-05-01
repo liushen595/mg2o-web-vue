@@ -24,7 +24,7 @@
                 <div class="connection-title">
                     <span>连接服务</span>
                     <span class="connection-status" :class="{ connected: isConnected }">{{ connectionStatusText
-                    }}</span>
+                        }}</span>
                 </div>
                 <div class="toggle-arrow" :class="{ expanded: showConnectionPanel }">
                     <div class="triangle"></div>
@@ -108,7 +108,7 @@
     }
 
     // 反应式状态
-    const serverUrl = ref('wss://8.130.167.142:8082/xiaozhi/v1/');
+    const serverUrl = ref('ws://8.130.167.142:8082/xiaozhi/v1/');
     const isConnected = ref(false);
     const connectionStatusText = ref('未连接');
     const messageText = ref('');
@@ -128,7 +128,7 @@
     const locationStatusText = ref('请验证您的位置');
     const locationDetails = ref('此应用只能在特定地点使用');
     const locationBtnText = ref('验证位置');
-    const currentLocation = ref(null);
+    const currentLocation = ref<any | undefined>(undefined);
     const locationCheckInterval = ref<number | null>(null);
 
     // Web版本特有：开发模式
