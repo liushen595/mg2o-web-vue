@@ -15,7 +15,7 @@
             </div>
             <button class="location-btn" @click="verifyUserLocation">{{ locationBtnText }}</button>
             <!-- Web版本特有：开发模式按钮 -->
-            <button class="dev-mode-btn" @click="toggleDevMode">开发测试模式</button>
+            <!-- <button class="dev-mode-btn" @click="toggleDevMode">开发测试模式</button> -->
         </div>
 
         <!-- 服务器连接部分 -->
@@ -24,7 +24,7 @@
                 <div class="connection-title">
                     <span>连接服务</span>
                     <span class="connection-status" :class="{ connected: isConnected }">{{ connectionStatusText
-                        }}</span>
+                    }}</span>
                 </div>
                 <div class="toggle-arrow" :class="{ expanded: showConnectionPanel }">
                     <div class="triangle"></div>
@@ -449,7 +449,7 @@
 
         // 如果是开发模式，直接模拟验证成功
         if (devMode.value) {
-            mockLocationVerification();
+            // mockLocationVerification();
             return;
         }
 
@@ -543,7 +543,7 @@
         }
     };
 
-    // Web版本新增：开启/关闭开发模式
+    // Web版本新增：开启 / 关闭开发模式
     const toggleDevMode = () => {
         devMode.value = !devMode.value;
 
@@ -828,7 +828,6 @@
         border-radius: 16px;
         padding: 20px;
         margin-bottom: 20px;
-        width: calc(100% - 40px);
         max-height: 60vh;
         overflow-y: auto;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -1044,6 +1043,7 @@
         font-size: 14px;
         height: 40px;
         padding: 0 16px;
+        border-radius: 12px;
         border-radius: 12px;
         transition: all 0.3s;
         border: none;

@@ -40,15 +40,9 @@ interface LocationValidationResponse {
 // 允许访问的地点列表（经纬度和半径范围，单位：米）
 const ALLOWED_LOCATIONS: AllowedLocation[] = [
     {
-        name: '苏州科技园',
-        latitude: 31.2959,
-        longitude: 120.5912,
-        radius: 1000 // 允许1公里范围内访问
-    },
-    {
         name: '苏州大学',
-        latitude: 31.3027,
-        longitude: 120.6497,
+        latitude: 31.30675141358815,
+        longitude: 120.64005983467405,
         radius: 500  // 允许500米范围内访问
     }
     // 可以添加更多允许的地点
