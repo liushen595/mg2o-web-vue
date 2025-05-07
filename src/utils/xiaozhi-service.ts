@@ -23,6 +23,11 @@ interface LLMMessage extends ServiceMessage {
     text: string;
 }
 
+// 语音识别结果接口
+interface STTMessage extends ServiceMessage {
+    text: string;
+}
+
 // 录音配置接口
 interface RecordingOptions {
     duration?: number;
@@ -59,6 +64,8 @@ let stopCallback: ((result: RecordingResult) => void) | null = null;
 let errorCallback: ((error: any) => void) | null = null;
 // 记录当前使用的音频MIME类型
 let currentMimeType: string = '';
+// 添加语音识别结果回调
+let speechRecognitionCallback: ((text: string) => void) | null = null;
 
 /**
  * 获取浏览器支持的最佳音频MIME类型
@@ -112,6 +119,7 @@ const getFormatFromMimeType = (mimeType: string): string => {
  * @param onMessageCallback 消息接收回调
  * @param onCloseCallback 连接关闭回调
  * @param onErrorCallback 错误回调
+ * @param onSpeechRecognition 语音识别结果回调
  * @returns 连接结果
  */
 const connectToServer = (
@@ -119,10 +127,14 @@ const connectToServer = (
     onConnectCallback?: () => void,
     onMessageCallback?: (message: ServiceMessage) => void,
     onCloseCallback?: () => void,
-    onErrorCallback?: (error: any) => void
+    onErrorCallback?: (error: any) => void,
+    onSpeechRecognition?: (text: string) => void
 ): Promise<boolean> => {
     return new Promise((resolve, reject) => {
         try {
+            // 保存语音识别回调函数
+            speechRecognitionCallback = onSpeechRecognition || null;
+
             // 检查URL格式
             if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
                 const error = 'URL格式错误，必须以ws://或wss://开头';
@@ -215,6 +227,13 @@ const connectToServer = (
                                 console.log('语音段结束:', ttsMessage.text);
                             } else if (ttsMessage.state === 'stop') {
                                 console.log('服务器语音传输结束');
+                            }
+                        } else if (message.type === 'stt') {
+                            // 语音识别结果
+                            const sttMessage = message as STTMessage;
+                            console.log('语音识别结果:', sttMessage.text);
+                            if (speechRecognitionCallback) {
+                                speechRecognitionCallback(sttMessage.text);
                             }
                         } else if (message.type === 'llm') {
                             // 大模型回复
@@ -429,15 +448,18 @@ const isConnectedToServer = (): boolean => {
  * @param onStartCallback 开始录音回调
  * @param onStopCallback 停止录音回调
  * @param onErrorCallback 错误回调
+ * @param onSpeechRecognitionCallback 语音识别结果回调
  */
 const initRecorder = (
     onStartCallbackFn?: () => void,
     onStopCallbackFn?: (result: RecordingResult) => void,
-    onErrorCallbackFn?: (error: any) => void
+    onErrorCallbackFn?: (error: any) => void,
+    onSpeechRecognitionCallbackFn?: (text: string) => void
 ): boolean => {
     startCallback = onStartCallbackFn || null;
     stopCallback = onStopCallbackFn || null;
     errorCallback = onErrorCallbackFn || null;
+    speechRecognitionCallback = onSpeechRecognitionCallbackFn || null;
 
     // Web版本录音初始化无需特别操作，只是存储回调函数
     console.log('录音管理器已初始化');

@@ -22,7 +22,7 @@
                 <div class="connection-title">
                     <span>连接服务</span>
                     <span class="connection-status" :class="{ connected: isConnected }">{{ connectionStatusText
-                        }}</span>
+                    }}</span>
                 </div>
                 <div class="toggle-arrow" :class="{ expanded: showConnectionPanel }">
                     <div class="triangle"></div>
@@ -76,6 +76,16 @@
                 :style="{ height: value + '%' }"></div>
         </div>
 
+        <!-- 语音识别结果显示 -->
+        <div v-if="speechRecognitionText" class="speech-recognition-container">
+            <div class="speech-recognition-text">
+                <span>{{ speechRecognitionText }}</span>
+                <div class="recognition-icon">
+                    <div class="mic-small-icon"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- 日志部分 -->
         <!-- <div class="log-container">
       <h3 class="log-title">日志</h3>
@@ -118,6 +128,8 @@
     const showConnectionPanel = ref(false);
     const responseTimeoutId = ref<number | null>(null);
     const responseTimeoutDuration = 15000; // 响应超时时间，默认10秒
+    const speechRecognitionText = ref<string | null>(null);
+    const speechRecognitionTimer = ref<number | null>(null);
 
     // 位置验证相关数据
     const isLocationVerified = ref(false);
@@ -179,7 +191,9 @@
                 isConnected.value = false;
                 connectionStatusText.value = '连接错误';
                 addLog(`连接错误: ${error}`, 'error');
-            }
+            },
+            // 语音识别结果回调
+            handleSpeechRecognition
         ).catch(error => {
             addLog(`连接失败: ${error}`, 'error');
             connectionStatusText.value = '连接失败';
@@ -256,6 +270,7 @@
         } else if (message.type === 'stt') {
             // 语音识别结果
             addLog(`识别结果: ${message.text}`, 'info');
+            speechRecognitionText.value = message.text;
         } else if (message.type === 'llm') {
             // 大模型回复
             addLog(`大模型回复: ${message.text}`, 'info');
@@ -536,6 +551,29 @@
         }
     };
 
+    // 处理语音识别结果
+    const handleSpeechRecognition = (text: string) => {
+        if (!text) return;
+
+        addLog(`收到语音识别结果: ${text}`, 'info');
+
+        // 显示语音识别结果
+        speechRecognitionText.value = text;
+
+        // 同时添加到消息列表，作为用户消息显示在右侧
+        addMessage(text, true);
+
+        // 设置定时器，一段时间后清除语音识别结果显示
+        if (speechRecognitionTimer.value !== null) {
+            clearTimeout(speechRecognitionTimer.value);
+        }
+
+        // 5秒后清除显示
+        speechRecognitionTimer.value = window.setTimeout(() => {
+            speechRecognitionText.value = null;
+        }, 5000);
+    };
+
     // 生命周期钩子
     onMounted(() => {
         // 添加初始日志
@@ -555,7 +593,7 @@
                 addLog(`录音时长: ${res.duration}ms，文件大小: ${res.fileSize}字节`, 'info');
 
                 // 显示用户消息"[语音]"
-                addMessage("[语音]", true);
+                // addMessage("[语音]", true);
             },
             // 错误回调
             (err) => {
@@ -1085,6 +1123,44 @@
         background: linear-gradient(to top, #52c41a, #1890ff);
         border-radius: 3px;
         transition: height 0.1s ease;
+    }
+
+    /* 语音识别结果显示样式 */
+    .speech-recognition-container {
+        background-color: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid #eaeaea;
+        text-align: center;
+    }
+
+    .speech-recognition-text {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .recognition-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #1890ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .mic-small-icon {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: white;
     }
 
     /* 加载动画容器 */
