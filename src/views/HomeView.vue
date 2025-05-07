@@ -14,8 +14,6 @@
                 <span>{{ locationDetails }}</span>
             </div>
             <button class="location-btn" @click="verifyUserLocation">{{ locationBtnText }}</button>
-            <!-- Web版本特有：开发模式按钮 -->
-            <!-- <button class="dev-mode-btn" @click="toggleDevMode">开发测试模式</button> -->
         </div>
 
         <!-- 服务器连接部分 -->
@@ -24,7 +22,7 @@
                 <div class="connection-title">
                     <span>连接服务</span>
                     <span class="connection-status" :class="{ connected: isConnected }">{{ connectionStatusText
-                    }}</span>
+                        }}</span>
                 </div>
                 <div class="toggle-arrow" :class="{ expanded: showConnectionPanel }">
                     <div class="triangle"></div>
@@ -108,7 +106,7 @@
     }
 
     // 反应式状态
-    const serverUrl = ref('ws://8.130.167.142:8082/xiaozhi/v1/');
+    const serverUrl = ref('wss://subodao.xyz/xiaozhi/v1/');
     const isConnected = ref(false);
     const connectionStatusText = ref('未连接');
     const messageText = ref('');
@@ -119,7 +117,7 @@
     const audioVisualizerData = ref<number[]>(Array(10).fill(0));
     const showConnectionPanel = ref(false);
     const responseTimeoutId = ref<number | null>(null);
-    const responseTimeoutDuration = 10000; // 响应超时时间，默认10秒
+    const responseTimeoutDuration = 15000; // 响应超时时间，默认10秒
 
     // 位置验证相关数据
     const isLocationVerified = ref(false);
@@ -130,9 +128,6 @@
     const locationBtnText = ref('验证位置');
     const currentLocation = ref<any | undefined>(undefined);
     const locationCheckInterval = ref<number | null>(null);
-
-    // Web版本特有：开发模式
-    const devMode = ref(false);
 
     // DOM引用
     const conversationRef = ref<HTMLElement | null>(null);
@@ -447,12 +442,6 @@
     const verifyUserLocation = async () => {
         if (isCheckingLocation.value) return;
 
-        // 如果是开发模式，直接模拟验证成功
-        if (devMode.value) {
-            // mockLocationVerification();
-            return;
-        }
-
         isCheckingLocation.value = true;
         locationStatusText.value = '正在验证位置...';
         locationBtnText.value = '验证中...';
@@ -480,8 +469,12 @@
 
                 // 如果是权限问题，提示用户打开设置
                 if (result.needPermission) {
-                    // Web版本使用alert替代模态框
-                    alert('请在浏览器设置中开启位置权限以使用本应用');
+                    // 为iOS Safari提供特定的提示信息
+                    if (locationService.isIosSafari()) {
+                        alert('请在iPhone的"设置 > Safari > 网站 > 定位服务"中允许访问，或在授权对话框中点击"允许"');
+                    } else {
+                        alert('请在浏览器设置中开启位置权限以使用本应用');
+                    }
                     locationService.openSetting();
                 }
             }
@@ -501,8 +494,8 @@
     const startLocationCheck = () => {
         // 每3分钟检查一次位置
         locationCheckInterval.value = window.setInterval(() => {
-            // 只有已验证过位置且非开发模式才进行后续检查
-            if (isLocationVerified.value && !devMode.value) {
+            // 只有已验证过位置才进行后续检查
+            if (isLocationVerified.value) {
                 checkLocationStillValid();
             }
         }, 3 * 60 * 1000);
@@ -543,47 +536,6 @@
         }
     };
 
-    // Web版本新增：开启 / 关闭开发模式
-    const toggleDevMode = () => {
-        devMode.value = !devMode.value;
-
-        if (devMode.value) {
-            locationService.enableDevMode();
-            mockLocationVerification();
-        } else {
-            // 禁用开发模式，需要重新验证位置
-            localStorage.removeItem('devModeEnabled');
-            isLocationVerified.value = false;
-            locationStatusText.value = '请验证您的位置';
-            locationDetails.value = '此应用只能在特定地点使用';
-            locationBtnText.value = '验证位置';
-
-            // 如果已连接，需要断开连接
-            if (isConnected.value) {
-                disconnectFromServer();
-            }
-        }
-    };
-
-    // Web版本新增：模拟位置验证成功
-    const mockLocationVerification = async () => {
-        locationStatusText.value = '正在验证位置...';
-        locationBtnText.value = '验证中...';
-
-        // 短暂延迟，模拟验证过程
-        setTimeout(async () => {
-            const result = await locationService.mockLocation();
-            isLocationVerified.value = true;
-            locationError.value = false;
-            locationStatusText.value = '开发模式：位置验证已跳过';
-            locationDetails.value = result.message;
-            addLog(result.message, 'info');
-
-            // 自动连接服务器
-            connectToServer();
-        }, 500);
-    };
-
     // 生命周期钩子
     onMounted(() => {
         // 添加初始日志
@@ -611,12 +563,6 @@
                 isRecording.value = false;
             }
         );
-
-        // 检查是否已启用开发模式
-        devMode.value = locationService.isDevModeEnabled();
-        if (devMode.value) {
-            mockLocationVerification();
-        }
 
         // 每次页面显示时验证位置
         verifyUserLocation();
@@ -744,19 +690,6 @@
         border: none;
         border-radius: 4px;
         cursor: pointer;
-    }
-
-    .dev-mode-btn {
-        background-color: #722ed1;
-        color: white;
-        font-size: 12px;
-        padding: 6px 12px;
-        height: 32px;
-        margin-top: 10px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        width: 40%;
     }
 
     .connection-section {
@@ -1290,8 +1223,7 @@
             max-height: 50vh;
         }
 
-        .location-btn,
-        .dev-mode-btn {
+        .location-btn {
             width: 80%;
         }
     }

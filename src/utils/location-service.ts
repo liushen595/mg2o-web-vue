@@ -43,10 +43,21 @@ const ALLOWED_LOCATIONS: AllowedLocation[] = [
         name: '苏州大学',
         latitude: 31.30675141358815,
         longitude: 120.64005983467405,
-        radius: 500  // 允许500米范围内访问
+        radius: 100000  // 允许100000米范围内访问
     }
     // 可以添加更多允许的地点
 ];
+
+/**
+ * 检测是否为iOS Safari浏览器
+ * @returns {boolean} 是否为iOS Safari浏览器
+ */
+const isIosSafari = (): boolean => {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+    return isIOS && isSafari;
+};
 
 /**
  * 计算两个坐标点之间的距离（米）
@@ -95,7 +106,7 @@ const getCurrentLocation = (): Promise<LocationInfo> => {
             },
             {
                 enableHighAccuracy: true, // 高精度定位
-                timeout: 10000, // 超时时间，10秒
+                timeout: 15000, // 超时时间，15秒 (增加超时时间，特别是iOS设备可能需要更长时间)
                 maximumAge: 0 // 不使用缓存的位置
             }
         );
@@ -108,7 +119,28 @@ const getCurrentLocation = (): Promise<LocationInfo> => {
  */
 const checkLocationPermission = (): Promise<boolean> => {
     return new Promise((resolve) => {
-        // 在Web端，通过navigator.permissions查询权限状态（如果浏览器支持）
+        // 如果是iOS Safari，我们直接尝试获取位置而不是查询权限API
+        if (isIosSafari()) {
+            console.log('iOS Safari环境，直接尝试获取位置');
+            // 使用一个短超时来快速检测权限
+            navigator.geolocation.getCurrentPosition(
+                () => resolve(true),
+                (error) => {
+                    // 1代表用户拒绝
+                    if (error.code === 1) {
+                        resolve(false);
+                    } else if (error.code === 2) { // 位置不可用
+                        resolve(false);
+                    } else { // 超时或其他错误，可能是首次请求
+                        resolve(false);
+                    }
+                },
+                { timeout: 3000, maximumAge: 0 }
+            );
+            return;
+        }
+
+        // 在其他浏览器中，通过navigator.permissions查询权限状态（如果浏览器支持）
         if (navigator.permissions && navigator.permissions.query) {
             navigator.permissions.query({ name: 'geolocation' as PermissionName })
                 .then(permissionStatus => {
@@ -141,12 +173,17 @@ const requestLocationPermission = (): Promise<boolean> => {
             (error) => {
                 // 用户拒绝了授权
                 if (error.code === 1) { // PERMISSION_DENIED
-                    console.log('用户拒绝了位置授权');
+                    console.log('用户拒绝了位置授权', error);
                     resolve(false);
                 } else {
                     console.error('请求位置授权失败:', error);
                     reject(error);
                 }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
             }
         );
     });
@@ -158,9 +195,13 @@ const requestLocationPermission = (): Promise<boolean> => {
  */
 const openSetting = (): Promise<boolean> => {
     return new Promise((resolve) => {
-        // Web环境中无法直接打开系统设置
-        // 显示提示信息，告诉用户如何开启位置权限
-        alert('请在浏览器设置中允许访问您的位置信息，然后刷新页面');
+        // iOS Safari需要特殊处理
+        if (isIosSafari()) {
+            alert('请在iPhone的"设置 > Safari > 网站 > 定位服务"中允许访问，或在授权对话框中点击"允许"');
+        } else {
+            // 其他浏览器的提示
+            alert('请在浏览器设置中允许访问您的位置信息，然后刷新页面');
+        }
         resolve(false);
     });
 };
@@ -213,6 +254,11 @@ const validateLocation = (location: LocationInfo): ValidationResult => {
  */
 const validateUserLocation = async (): Promise<LocationValidationResponse> => {
     try {
+        // 检查是否为开发模式
+        if (isDevModeEnabled()) {
+            return mockLocation();
+        }
+
         // 检查权限
         const hasPermission = await checkLocationPermission();
 
@@ -222,16 +268,24 @@ const validateUserLocation = async (): Promise<LocationValidationResponse> => {
             try {
                 const granted = await requestLocationPermission();
                 if (!granted) {
+                    const message = isIosSafari()
+                        ? '无法获取位置权限，请在iPhone的"设置 > Safari > 网站 > 定位服务"中允许访问'
+                        : '无法获取位置权限，请在浏览器设置中允许位置访问';
+
                     return {
                         success: false,
-                        message: '无法获取位置权限，请在浏览器设置中允许位置访问',
+                        message,
                         needPermission: true
                     };
                 }
             } catch (error) {
+                const message = isIosSafari()
+                    ? '请求位置权限失败，请在iPhone的"设置 > Safari > 网站 > 定位服务"中允许访问'
+                    : '请求位置权限失败，请在浏览器设置中允许位置访问';
+
                 return {
                     success: false,
-                    message: '请求位置权限失败，请在浏览器设置中允许位置访问',
+                    message,
                     error,
                     needPermission: true
                 };
@@ -263,10 +317,27 @@ const validateUserLocation = async (): Promise<LocationValidationResponse> => {
         } catch (locError: any) {
             // 特别处理用户拒绝授权的情况
             if (locError.code === 1) { // 1表示用户拒绝了地理定位请求
+                const message = isIosSafari()
+                    ? '您拒绝了位置权限，请在iPhone的"设置 > Safari > 网站 > 定位服务"中允许访问'
+                    : '您拒绝了位置权限，请在浏览器设置中允许位置访问';
+
                 return {
                     success: false,
-                    message: '您拒绝了位置权限，请在浏览器设置中允许位置访问',
+                    message,
                     needPermission: true,
+                    error: locError
+                };
+            } else if (locError.code === 2) { // 2表示位置不可用
+                return {
+                    success: false,
+                    message: '无法获取位置信息，请确保您的位置服务已开启',
+                    needPermission: true,
+                    error: locError
+                };
+            } else if (locError.code === 3) { // 3表示超时
+                return {
+                    success: false,
+                    message: '位置获取超时，请确保您的位置服务已开启并重试',
                     error: locError
                 };
             }
@@ -333,5 +404,7 @@ export default {
     // Web版本新增的开发模式API
     enableDevMode,
     isDevModeEnabled,
-    mockLocation
+    mockLocation,
+    // 新增用于检测浏览器的方法
+    isIosSafari
 };
