@@ -4,8 +4,8 @@
             <h1 class="title">苏博导智能体</h1>
         </div>
 
-        <!-- 位置验证部分 -->
-        <div v-if="!isLocationVerified" class="location-verification">
+        <!-- 位置验证部分 已暂时禁用-->
+        <!-- <div v-if="!isLocationVerified" class="location-verification">
             <div class="location-status"
                 :class="{ 'location-denied': locationError, 'location-allowed': isLocationVerified }">
                 <span>{{ locationStatusText }}</span>
@@ -14,7 +14,7 @@
                 <span>{{ locationDetails }}</span>
             </div>
             <button class="location-btn" @click="verifyUserLocation">{{ locationBtnText }}</button>
-        </div>
+        </div> -->
 
         <!-- 服务器连接部分 -->
         <div v-if="isLocationVerified" class="connection-section">
@@ -66,7 +66,7 @@
             <button class="record-btn" @click="toggleRecording" :disabled="!isConnected"
                 :class="{ recording: isRecording }">
                 <div class="mic-icon"></div>
-                <span>{{ isRecording ? '停止' : '录音' }}</span>
+                <span>{{ isRecording ? '停止' : '对话' }}</span>
             </button>
         </div>
 
